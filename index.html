@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cube Timer</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: monospace;
+      background: #111827;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin-top: 20px;
+    }
+
+    #scramble {
+      margin: 20px;
+      font-size: 18px;
+      text-align: center;
+      padding: 10px;
+    }
+
+    #timer {
+      font-size: 70px;
+      margin: 20px;
+      user-select: none;
+    }
+
+    #stats {
+      margin-top: 20px;
+      font-size: 14px;
+    }
+
+    #solves {
+      margin-top: 20px;
+      width: 90%;
+      max-width: 400px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>Cube Timer</h1>
+
+<div id="scramble"></div>
+<div id="inspection"></div>
+<div id="timer">00.00</div>
+<div id="stats"></div>
+<div id="solves"></div>
+
+<script>
+let time = 0;
+let running = false;
+let interval;
+let solves = JSON.parse(localStorage.getItem("cube_solves")) || [];
+let inspectionTime = 15;
+let inspectionRunning = false;
+
+function format(ms) {
+  let s = Math.floor(ms / 1000);
+  let cs = Math.floor((ms % 1000) / 10);
+  return s.toString().padStart(2,"0") + "." + cs.toString().padStart(2,"0");
+}
+
+function scramble() {
+  const moves = ["R","L","U","D","F","B"];
+  const mods = ["","'","2"];
+  let s = [];
+  for(let i=0;i<20;i++){
+    s.push(moves[Math.floor(Math.random()*6)] + mods[Math.floor(Math.random()*3)]);
+  }
+  document.getElementById("scramble").innerText = s.join(" ");
+}
+scramble();
+
+function updateStats() {
+  if(solves.length === 0) return;
+  let best = Math.min(...solves);
+  let worst = Math.max(...solves);
+  document.getElementById("stats").innerText =
+    "Best: " + format(best) + " | Worst: " + format(worst);
+}
+
+function updateSolves() {
+  let container = document.getElementById("solves");
+  container.innerHTML = "";
+  solves.forEach((s,i)=>{
+    container.innerHTML += "#" + (solves.length-i) + " - " + format(s) + "<br>";
+  });
+}
+
+updateStats();
+updateSolves();
+
+document.body.addEventListener("keydown", e => {
+  if(e.code === "Space"){
+    e.preventDefault();
+    if(running){
+      clearInterval(interval);
+      running = false;
+      solves.unshift(time);
+      localStorage.setItem("cube_solves", JSON.stringify(solves));
+      updateStats();
+      updateSolves();
+      scramble();
+    } else if(!inspectionRunning){
+      startInspection();
+    }
+  }
+});
+
+document.getElementById("timer").addEventListener("touchstart", ()=>{
+  if(!running && !inspectionRunning) startInspection();
+});
+
+document.getElementById("timer").addEventListener("touchend", ()=>{
+  if(running){
+    clearInterval(interval);
+    running = false;
+    solves.unshift(time);
+    localStorage.setItem("cube_solves", JSON.stringify(solves));
+    updateStats();
+    updateSolves();
+    scramble();
+  }
+});
+
+function startInspection(){
+  inspectionRunning = true;
+  inspectionTime = 15;
+  let ins = document.getElementById("inspection");
+  let count = setInterval(()=>{
+    ins.innerText = "Inspection: " + inspectionTime;
+    inspectionTime--;
+    if(inspectionTime < 0){
+      clearInterval(count);
+      ins.innerText = "";
+      startTimer();
+    }
+  },1000);
+}
+
+function startTimer(){
+  inspectionRunning = false;
+  time = 0;
+  running = true;
+  interval = setInterval(()=>{
+    time += 10;
+    document.getElementById("timer").innerText = format(time);
+  },10);
+}
+</script>
+
+</body>
+</html>
